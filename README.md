@@ -1,5 +1,7 @@
 # devops-a2-004
 
+[![CI](https://github.com/HuzaifaQ-1/devops-a2-004/actions/workflows/ci.yml/badge.svg)](https://github.com/HuzaifaQ-1/devops-a2-004/actions/workflows/ci.yml)
+
 A simple personal portfolio page for **Huzaifa Qazi (Roll No. 004)**, built for
 Assignment 2 of the *DevOps for Cloud Computing* lab course.
 
