@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/devops-a2
+
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v7
+
+      - name: Check the page files
+        run: |
+          test -f index.html || { echo "index.html is missing"; exit 1; }
+          test -f style.css  || { echo "style.css is missing"; exit 1; }
+          grep -q '<title>' index.html || { echo "index.html has no <title>"; exit 1; }
+          grep -q 'Roll No: 004' index.html || { echo "Roll number 004 not found"; exit 1; }
+          grep -q 'Huzaifa Qazi' index.html || { echo "Name not found"; exit 1; }
+          grep -q 'href="style.css"' index.html || { echo "style.css is not linked"; exit 1; }
+          echo "All page checks passed"
+
+      - name: Check the Labs section
+        run: |
+          grep -q '<h2>Labs</h2>' index.html || { echo "Labs section is missing"; exit 1; }
+          for topic in Git GitHub Docker Actions; do
+            grep -q "<strong>$topic:</strong>" index.html || { echo "Labs topic '$topic' is missing"; exit 1; }
+          done
+          echo "Labs section has all four topics"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: devops-a2:test
+
+      - name: Test the running container
+        run: |
+          docker run -d -p 8080:80 --name page devops-a2:test
+          sleep 3
+          curl -sf http://localhost:8080 | grep -q 'Roll No: 004' || { echo "Container did not serve the page"; exit 1; }
+          echo "Container serves the page correctly"
+          docker rm -f page
+
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push image to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}:latest
